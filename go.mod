@@ -14,10 +14,10 @@ require (
 	github.com/containers/buildah v1.25.2-0.20220406205807-5b8e79118057
 	github.com/containers/common v0.47.5-0.20220405040919-5d3a1effbf99
 	github.com/containers/conmon v2.0.20+incompatible
-	github.com/containers/image/v5 v5.21.0
-	github.com/containers/ocicrypt v1.1.3
+	github.com/containers/image/v5 v5.21.1
+	github.com/containers/ocicrypt v1.1.4-0.20220428134531-566b808bdf6f
 	github.com/containers/psgo v1.7.2
-	github.com/containers/storage v1.39.1-0.20220330193934-f3200eb5a5d9
+	github.com/containers/storage v1.40.0
 	github.com/coreos/go-systemd/v22 v22.3.2
 	github.com/coreos/stream-metadata-go v0.0.0-20210225230131-70edb9eb47b3
 	github.com/cyphar/filepath-securejoin v0.2.3
@@ -67,7 +67,7 @@ require (
 	go.etcd.io/bbolt v1.3.6
 	golang.org/x/crypto v0.0.0-20220112180741-5e0467b6c7ce
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
-	golang.org/x/sys v0.0.0-20220319134239-a9b59b0215f8
+	golang.org/x/sys v0.0.0-20220422013727-9388b58f7150
 	golang.org/x/text v0.3.7
 	google.golang.org/protobuf v1.28.0
 	gopkg.in/inf.v0 v0.9.1
