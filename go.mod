@@ -15,7 +15,7 @@ require (
 	github.com/containers/common v0.47.5-0.20220405040919-5d3a1effbf99
 	github.com/containers/conmon v2.0.20+incompatible
 	github.com/containers/image/v5 v5.21.0
-	github.com/containers/ocicrypt v1.1.3
+	github.com/containers/ocicrypt v1.1.5
 	github.com/containers/psgo v1.7.2
 	github.com/containers/storage v1.39.1-0.20220330193934-f3200eb5a5d9
 	github.com/coreos/go-systemd/v22 v22.3.2
