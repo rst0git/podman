@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 
 	metadata "github.com/checkpoint-restore/checkpointctl/lib"
-	"github.com/checkpoint-restore/go-criu/v5/stats"
 	"github.com/containers/storage/pkg/archive"
 	"github.com/opencontainers/selinux/go-selinux/label"
 )
@@ -57,7 +56,7 @@ func CRImportCheckpointConfigOnly(destination, input string) error {
 		ExcludePatterns: []string{
 			"ctr.log",
 			"artifacts",
-			stats.StatsDump,
+			"stats-dump",
 			metadata.RootFsDiffTar,
 			metadata.DeletedFilesFile,
 			metadata.NetworkStatusFile,
