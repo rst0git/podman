@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/checkpoint-restore/go-criu/v5/stats"
 	"github.com/containers/podman/v4/pkg/checkpoint/crutils"
 	"github.com/containers/podman/v4/pkg/criu"
 	"github.com/containers/podman/v4/pkg/domain/entities"
@@ -1381,7 +1380,7 @@ var _ = Describe("Podman checkpoint", func() {
 		)
 		Expect(tarsession).Should(Exit(0))
 
-		_, err = os.Stat(filepath.Join(destinationDirectory, stats.StatsDump))
+		_, err = os.Stat(filepath.Join(destinationDirectory, "stats-dump"))
 		Expect(err).ShouldNot(HaveOccurred())
 
 		Expect(os.RemoveAll(destinationDirectory)).To(BeNil())

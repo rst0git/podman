@@ -21,7 +21,7 @@ import (
 	"time"
 
 	metadata "github.com/checkpoint-restore/checkpointctl/lib"
-	"github.com/checkpoint-restore/go-criu/v5/stats"
+	"github.com/checkpoint-restore/go-criu/v6/crit"
 	cdi "github.com/container-orchestrated-devices/container-device-interface/pkg/cdi"
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/containers/buildah"
@@ -1283,11 +1283,11 @@ func (c *Container) exportCheckpoint(options ContainerCheckpointOptions) error {
 
 	includeFiles := []string{
 		"artifacts",
+		"stats-dump",
 		metadata.DevShmCheckpointTar,
 		metadata.ConfigDumpFile,
 		metadata.SpecDumpFile,
 		metadata.NetworkStatusFile,
-		stats.StatsDump,
 	}
 
 	if c.LogDriver() == define.KubernetesLogging ||
@@ -1517,7 +1517,8 @@ func (c *Container) checkpoint(ctx context.Context, options ContainerCheckpointO
 			return nil, fmt.Errorf("not able to open %q: %w", c.bundlePath(), err)
 		}
 
-		dumpStatistics, err := stats.CriuGetDumpStats(statsDirectory)
+		// Get dump statistics with crit
+		dumpStatistics, err := crit.GetDumpStats(statsDirectory.Name())
 		if err != nil {
 			return nil, fmt.Errorf("displaying checkpointing statistics not possible: %w", err)
 		}
@@ -1538,7 +1539,7 @@ func (c *Container) checkpoint(ctx context.Context, options ContainerCheckpointO
 	if !options.Keep && !options.PreCheckPoint {
 		cleanup := []string{
 			"dump.log",
-			stats.StatsDump,
+			"stats-dump",
 			metadata.ConfigDumpFile,
 			metadata.SpecDumpFile,
 		}
@@ -1950,7 +1951,8 @@ func (c *Container) restore(ctx context.Context, options ContainerCheckpointOpti
 			return nil, fmt.Errorf("not able to open %q: %w", c.bundlePath(), err)
 		}
 
-		restoreStatistics, err := stats.CriuGetRestoreStats(statsDirectory)
+		// Get restore statistics with crit
+		restoreStatistics, err := crit.GetRestoreStats(statsDirectory.Name())
 		if err != nil {
 			return nil, fmt.Errorf("displaying restore statistics not possible: %w", err)
 		}
@@ -1996,8 +1998,8 @@ func (c *Container) restore(ctx context.Context, options ContainerCheckpointOpti
 		cleanup := [...]string{
 			"restore.log",
 			"dump.log",
-			stats.StatsDump,
-			stats.StatsRestore,
+			"stats-dump",
+			"stats-restore",
 			metadata.DevShmCheckpointTar,
 			metadata.NetworkStatusFile,
 			metadata.RootFsDiffTar,
@@ -2553,11 +2555,12 @@ func (c *Container) bindMountRootFile(source, dest string) error {
 // generateGroupEntry generates an entry or entries into /etc/group as
 // required by container configuration.
 // Generally speaking, we will make an entry under two circumstances:
-// 1. The container is started as a specific user:group, and that group is both
-//    numeric, and does not already exist in /etc/group.
-// 2. It is requested that Libpod add the group that launched Podman to
-//    /etc/group via AddCurrentUserPasswdEntry (though this does not trigger if
-//    the group in question already exists in /etc/passwd).
+//  1. The container is started as a specific user:group, and that group is both
+//     numeric, and does not already exist in /etc/group.
+//  2. It is requested that Libpod add the group that launched Podman to
+//     /etc/group via AddCurrentUserPasswdEntry (though this does not trigger if
+//     the group in question already exists in /etc/passwd).
+//
 // Returns group entry (as a string that can be appended to /etc/group) and any
 // error that occurred.
 func (c *Container) generateGroupEntry() (string, error) {
@@ -2660,13 +2663,14 @@ func (c *Container) generateUserGroupEntry(addedGID int) (string, error) {
 // generatePasswdEntry generates an entry or entries into /etc/passwd as
 // required by container configuration.
 // Generally speaking, we will make an entry under two circumstances:
-// 1. The container is started as a specific user who is not in /etc/passwd.
-//    This only triggers if the user is given as a *numeric* ID.
-// 2. It is requested that Libpod add the user that launched Podman to
-//    /etc/passwd via AddCurrentUserPasswdEntry (though this does not trigger if
-//    the user in question already exists in /etc/passwd) or the UID to be added
-//    is 0).
-// 3. The user specified additional host user accounts to add the the /etc/passwd file
+//  1. The container is started as a specific user who is not in /etc/passwd.
+//     This only triggers if the user is given as a *numeric* ID.
+//  2. It is requested that Libpod add the user that launched Podman to
+//     /etc/passwd via AddCurrentUserPasswdEntry (though this does not trigger if
+//     the user in question already exists in /etc/passwd) or the UID to be added
+//     is 0).
+//  3. The user specified additional host user accounts to add the the /etc/passwd file
+//
 // Returns password entry (as a string that can be appended to /etc/passwd) and
 // any error that occurred.
 func (c *Container) generatePasswdEntry() (string, error) {
