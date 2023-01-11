@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/containers/common/pkg/cgroups"
 	"github.com/containers/podman/v4/libpod/define"
 	"github.com/containers/podman/v4/libpod/events"
+	"github.com/containers/podman/v4/pkg/domain/entities"
 	"github.com/containers/podman/v4/pkg/parallel"
 	"github.com/containers/podman/v4/pkg/rootless"
 	"github.com/opencontainers/runtime-spec/specs-go"
@@ -640,6 +642,8 @@ func (p *Pod) Inspect() (*define.InspectPodData, error) {
 		return nil, err
 	}
 
+	ctrCheckpoints := make([]define.InspectPodCheckpointInfo, 0)
+
 	namespaces := map[string]bool{
 		"pid":    p.config.UsePodPID,
 		"ipc":    p.config.UsePodIPC,
@@ -739,6 +743,8 @@ func (p *Pod) Inspect() (*define.InspectPodData, error) {
 		SharedNamespaces:    sharesNS,
 		NumContainers:       uint(len(containers)),
 		Containers:          ctrs,
+		NumCheckpoints:      uint(len(ctrCheckpoints)),
+		Checkpoints:         ctrCheckpoints,
 		CPUSetCPUs:          p.ResourceLim().CPU.Cpus,
 		CPUPeriod:           p.CPUPeriod(),
 		CPUQuota:            p.CPUQuota(),
@@ -758,4 +764,51 @@ func (p *Pod) Inspect() (*define.InspectPodData, error) {
 	}
 
 	return &inspectData, nil
+}
+
+// Checkpoint checkpoints all containers within a pod.
+// We go over all containers to ensure that they are checkpointed
+// in the correct order. For example, if container A is dependent
+// on container B, container B should be started before container A.
+// Thus, we checkpoint container A first, then container B.
+// Containers that are not running or have been paused are ignored.
+// An error and a map[string]error are returned. If the error is not nil
+// and the map is nil, an error was encountered before any containers were
+// checkpointed. If map is not nil, an error was encountered when checkpointing
+// one or more containers. The container ID is mapped to the error encountered.
+// The error is set to ErrPodPartialFail. If both error and the map are nil,
+// all containers were checkpointed successfully.
+func (p *Pod) Checkpoint(ctx context.Context, podCheckpointOpts entities.PodCheckpointOptions) (map[string]error, error) {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+
+	if !p.valid {
+		return nil, define.ErrPodRemoved
+	}
+
+	allCtrs, err := p.runtime.state.PodContainers(p)
+	if err != nil {
+		return nil, err
+	}
+
+	// Build a dependency graph of containers in the pod
+	graph, err := BuildContainerGraph(allCtrs)
+	if err != nil {
+		return nil, fmt.Errorf("generating dependency graph for pod %s: %w", p.ID(), err)
+	}
+
+	ctrErrors := make(map[string]error)
+	ctrsVisited := make(map[string]bool)
+
+	podCheckpointOpts.Prefix = p.Name() + "-" + time.Now().Format("20060102150405") + "-"
+	podCheckpointOpts.PodID = p.ID()
+
+	for _, node := range graph.notDependedOnNodes {
+		checkpointNode(ctx, node, podCheckpointOpts, false, ctrErrors, ctrsVisited)
+	}
+
+	if len(ctrErrors) > 0 {
+		return ctrErrors, fmt.Errorf("checkpointing containers: %w", define.ErrPodPartialFail)
+	}
+	return nil, nil
 }

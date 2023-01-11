@@ -75,6 +75,7 @@ type ContainerEngine interface { //nolint:interfacebloat
 	NetworkRm(ctx context.Context, namesOrIds []string, options NetworkRmOptions) ([]*NetworkRmReport, error)
 	PlayKube(ctx context.Context, body io.Reader, opts PlayKubeOptions) (*PlayKubeReport, error)
 	PlayKubeDown(ctx context.Context, body io.Reader, opts PlayKubeDownOptions) (*PlayKubeReport, error)
+	PodCheckpoint(ctx context.Context, namesOrIds []string, options PodCheckpointOptions) ([]*CheckpointReport, error)
 	PodCreate(ctx context.Context, specg PodSpec) (*PodCreateReport, error)
 	PodClone(ctx context.Context, podClone PodCloneOptions) (*PodCloneReport, error)
 	PodExists(ctx context.Context, nameOrID string) (*BoolReport, error)

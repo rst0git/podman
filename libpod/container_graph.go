@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/containers/podman/v4/libpod/define"
+	"github.com/containers/podman/v4/pkg/domain/entities"
 	"github.com/sirupsen/logrus"
 )
 
@@ -376,5 +377,45 @@ func removeNode(ctx context.Context, node *containerNode, pod *Pod, force bool, 
 	// Recurse to anyone who we depend on and remove them
 	for _, successor := range node.dependsOn {
 		removeNode(ctx, successor, pod, force, timeout, ctrErrored, ctrErrors, ctrsVisited, ctrNamedVolumes)
+	}
+}
+
+// Checkpoint all container in reverse order of the dependency graph.
+// For example, if container A depends on container B, we checkpoint
+// container A first, then container B.
+func checkpointNode(ctx context.Context, node *containerNode, podCheckpointOpts entities.PodCheckpointOptions, setError bool, ctrErrors map[string]error, ctrsVisited map[string]bool) {
+	// FIXME: Deal with potential failures once the basic functionality is working.
+
+	// Check if we have already visited this node
+	if ctrsVisited[node.id] {
+		return
+	}
+	ctrsVisited[node.id] = true
+
+	if setError {
+		ctrErrors[node.id] = fmt.Errorf("a dependency of container %s failed to checkpoint: %w", node.id, define.ErrCtrStateInvalid)
+		return
+	}
+
+	ctrCheckpointOpts := ContainerCheckpointOptions{
+		KeepRunning:    !podCheckpointOpts.LeaveStopped,
+		TCPEstablished: true,
+		FileLocks:      true,
+		CreateImage:    podCheckpointOpts.Prefix + node.id,
+		Pod:            podCheckpointOpts.PodID,
+	}
+
+	ctrErrored := false
+
+	_, _, err := node.container.Checkpoint(ctx, ctrCheckpointOpts)
+	if err != nil {
+		logrus.Errorf("Failed to checkpoint container %v: %v", node.id, err)
+		ctrErrors[node.id] = err
+		ctrErrored = true
+	}
+
+	// Recurse to anyone who depends on us and start them
+	for _, successor := range node.dependsOn {
+		checkpointNode(ctx, successor, podCheckpointOpts, ctrErrored, ctrErrors, ctrsVisited)
 	}
 }

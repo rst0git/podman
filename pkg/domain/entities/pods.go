@@ -110,6 +110,14 @@ type PodRmReport struct {
 	Id          string //nolint:revive,stylecheck
 }
 
+type PodCheckpointOptions struct {
+	All          bool
+	Latest       bool
+	LeaveStopped bool
+	Prefix       string
+	PodID        string
+}
+
 // PddSpec is an abstracted version of PodSpecGen designed to eventually accept options
 // not meant to be in a specgen
 type PodSpec struct {

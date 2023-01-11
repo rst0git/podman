@@ -197,6 +197,10 @@ func (ic *ContainerEngine) PodPrune(ctx context.Context, opts entities.PodPruneO
 	return pods.Prune(ic.ClientCtx, nil)
 }
 
+func (ic *ContainerEngine) PodCheckpoint(ctx context.Context, namesOrIds []string, options entities.PodCheckpointOptions) ([]*entities.CheckpointReport, error) {
+	return pods.Checkpoint(ctx, namesOrIds, options)
+}
+
 func (ic *ContainerEngine) PodCreate(ctx context.Context, specg entities.PodSpec) (*entities.PodCreateReport, error) {
 	return pods.CreatePodFromSpec(ic.ClientCtx, &specg)
 }

@@ -303,6 +303,24 @@ func (ic *ContainerEngine) prunePodHelper(ctx context.Context) ([]*entities.PodP
 	return reports, nil
 }
 
+func (ic *ContainerEngine) PodCheckpoint(ctx context.Context, namesOrIds []string, options entities.PodCheckpointOptions) ([]*entities.CheckpointReport, error) {
+	pods, err := getPodsByContext(options.All, options.Latest, namesOrIds, ic.Libpod)
+	if err != nil {
+		return nil, err
+	}
+
+	CheckpointReport := make([]*entities.CheckpointReport, 0, len(pods))
+
+	for _, p := range pods {
+		_, err = p.Checkpoint(ctx, options)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return CheckpointReport, nil
+}
+
 func (ic *ContainerEngine) PodCreate(ctx context.Context, specg entities.PodSpec) (*entities.PodCreateReport, error) {
 	pod, err := generate.MakePod(&specg, ic.Libpod)
 	if err != nil {

@@ -347,3 +347,7 @@ func Stats(ctx context.Context, namesOrIDs []string, options *StatsOptions) ([]*
 
 	return reports, response.Process(&reports)
 }
+
+func Checkpoint(ctx context.Context, namesOrIDs []string, options entities.PodCheckpointOptions) ([]*entities.CheckpointReport, error) {
+	return nil, nil
+}

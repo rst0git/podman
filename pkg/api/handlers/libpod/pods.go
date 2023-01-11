@@ -24,6 +24,10 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+func PodCheckpoint(w http.ResponseWriter, r *http.Request) {
+	// TODO: Extend this to invoke checkpointing.
+}
+
 func PodCreate(w http.ResponseWriter, r *http.Request) {
 	const (
 		failedToDecodeSpecgen = "failed to decode specgen"

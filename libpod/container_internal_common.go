@@ -1000,28 +1000,30 @@ func (c *Container) createCheckpointImage(ctx context.Context, options Container
 }
 
 func (c *Container) exportCheckpoint(options ContainerCheckpointOptions) error {
-	if len(c.Dependencies()) == 1 {
-		// Check if the dependency is an infra container. If it is we can checkpoint
-		// the container out of the Pod.
-		if c.config.Pod == "" {
-			return errors.New("cannot export checkpoints of containers with dependencies")
-		}
+	// FIXME: Implement checkpoint/restore of containers with dependencies.
 
-		pod, err := c.runtime.state.Pod(c.config.Pod)
-		if err != nil {
-			return fmt.Errorf("container %s is in pod %s, but pod cannot be retrieved: %w", c.ID(), c.config.Pod, err)
-		}
-		infraID, err := pod.InfraContainerID()
-		if err != nil {
-			return fmt.Errorf("cannot retrieve infra container ID for pod %s: %w", c.config.Pod, err)
-		}
-		if c.Dependencies()[0] != infraID {
-			return errors.New("cannot export checkpoints of containers with dependencies")
-		}
-	}
-	if len(c.Dependencies()) > 1 {
-		return errors.New("cannot export checkpoints of containers with dependencies")
-	}
+	// if len(c.Dependencies()) == 1 {
+	// 	// Check if the dependency is an infra container. If it is we can checkpoint
+	// 	// the container out of the Pod.
+	// 	if c.config.Pod == "" {
+	// 		return errors.New("cannot export checkpoints of containers with dependencies")
+	// 	}
+
+	// 	pod, err := c.runtime.state.Pod(c.config.Pod)
+	// 	if err != nil {
+	// 		return fmt.Errorf("container %s is in pod %s, but pod cannot be retrieved: %w", c.ID(), c.config.Pod, err)
+	// 	}
+	// 	infraID, err := pod.InfraContainerID()
+	// 	if err != nil {
+	// 		return fmt.Errorf("cannot retrieve infra container ID for pod %s: %w", c.config.Pod, err)
+	// 	}
+	// 	if c.Dependencies()[0] != infraID {
+	// 		return errors.New("cannot export checkpoints of containers with dependencies")
+	// 	}
+	// }
+	// if len(c.Dependencies()) > 1 {
+	// 	return errors.New("cannot export checkpoints of containers with dependencies")
+	// }
 	logrus.Debugf("Exporting checkpoint image of container %q to %q", c.ID(), options.TargetFile)
 
 	includeFiles := []string{

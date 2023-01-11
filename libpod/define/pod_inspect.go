@@ -53,6 +53,10 @@ type InspectPodData struct {
 	// Containers gives a brief summary of all containers in the pod and
 	// their current status.
 	Containers []InspectPodContainerInfo `json:"Containers,omitempty"`
+	// NumCheckpoints is the number of checkpoints associated with the pod.
+	NumCheckpoints uint
+	// Checkpoints gives a brief summary of all checkpoints of the pod.
+	Checkpoints []InspectPodCheckpointInfo `json:"Checkpoints,omitempty"`
 	// CPUPeriod contains the CPU period of the pod
 	CPUPeriod uint64 `json:"cpu_period,omitempty"`
 	// CPUQuota contains the CPU quota of the pod
@@ -150,4 +154,12 @@ type InspectPodContainerInfo struct {
 	Name string
 	// State is the current status of the container.
 	State string
+}
+
+// InspectPodCheckpointInfo contains information on a checkpoint of a container in a pod.
+type InspectPodCheckpointInfo struct {
+	// ID is the ID of the container.
+	ID string `json:"Id"`
+	// Name is the name of the container.
+	Name string
 }
