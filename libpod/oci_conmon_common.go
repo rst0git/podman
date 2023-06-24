@@ -805,6 +805,50 @@ func (r *ConmonOCIRuntime) AttachResize(ctr *Container, newSize resize.TerminalS
 	return nil
 }
 
+type criuCoordinatorConfig struct {
+	ID           string `json:"id"`
+	Dependencies string `json:"dependencies"`
+	Address      string `json:"address"`
+	Port         string `json:"port"`
+	LogFile      string `json:"log-file"`
+}
+
+func generateCheckpointCoordinatorConfig(folderPath string, ctrID string) {
+	configPath := folderPath + "/criu-coordinator.json"
+	config := criuCoordinatorConfig{
+		ID:           ctrID,
+		Dependencies: ctrID,
+		Address:      "127.0.0.1",
+		Port:         "8080",
+		LogFile:      "coordinator.log",
+	}
+
+	// Create the specified folder if it doesn't exist
+	err := os.MkdirAll(folderPath, os.ModePerm)
+	if err != nil {
+		fmt.Println("Error creating folder:", err)
+		return
+	}
+
+	// Open the configuration configFile for writing
+	configFile, err := os.Create(configPath)
+	if err != nil {
+		fmt.Println("Error creating file:", err)
+		return
+	}
+	defer configFile.Close()
+
+	// Encode the configuration struct into JSON format
+	encoder := json.NewEncoder(configFile)
+	err = encoder.Encode(config)
+	if err != nil {
+		fmt.Println("Error encoding config:", err)
+		return
+	}
+
+	logrus.Debugf("Configuration file created successfully at %s", configPath)
+}
+
 // CheckpointContainer checkpoints the given container.
 func (r *ConmonOCIRuntime) CheckpointContainer(ctr *Container, options ContainerCheckpointOptions) (int64, error) {
 	// imagePath is used by CRIU to store the actual checkpoint files
@@ -864,6 +908,8 @@ func (r *ConmonOCIRuntime) CheckpointContainer(ctr *Container, options Container
 		runtimeCheckpointStarted = time.Now()
 		return utils.ExecCmdWithStdStreams(os.Stdin, os.Stdout, os.Stderr, env, r.path, args...)
 	})
+
+	generateCheckpointCoordinatorConfig(imagePath, ctr.ID())
 
 	runtimeCheckpointDuration := func() int64 {
 		if options.PrintStats {
