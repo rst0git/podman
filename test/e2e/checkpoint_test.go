@@ -1110,6 +1110,7 @@ var _ = Describe("Podman checkpoint", func() {
 		"net,uts",
 		"uts,pid",
 	}
+
 	for _, share := range namespaceCombination {
 		testName := fmt.Sprintf(
 			"podman checkpoint and restore container out of and into pod (%s)",
@@ -1119,6 +1120,8 @@ var _ = Describe("Podman checkpoint", func() {
 		share := share // copy into local scope, for use inside function
 
 		It(testName, func() {
+			podName := "test_pod"
+
 			if err := criu.CheckForCriu(criu.PodCriuVersion); err != nil {
 				Skip(fmt.Sprintf("check CRIU pod version error: %v", err))
 			}
@@ -1126,39 +1129,20 @@ var _ = Describe("Podman checkpoint", func() {
 				Skip("runtime does not support pod restore: " + podmanTest.OCIRuntime)
 			}
 			// Create a pod
-			session := podmanTest.Podman([]string{
-				"pod",
-				"create",
-				"--share",
-				share,
-			})
+			session := podmanTest.Podman([]string{"pod", "create", "--name", podName, "--share", share})
 			session.WaitWithDefaultTimeout()
 			Expect(session).To(ExitCleanly())
 			podID := session.OutputToString()
 
-			session = podmanTest.Podman([]string{
-				"run",
-				"-d",
-				"--rm",
-				"--pod",
-				podID,
-				ALPINE,
-				"top",
-			})
+			session = podmanTest.Podman([]string{"run", "-d", "--rm", "--pod", podID, ALPINE, "top"})
 			session.WaitWithDefaultTimeout()
 			Expect(session).To(ExitCleanly())
-			cid := session.OutputToString()
+			cId := session.OutputToString()
 
-			fileName := filepath.Join(podmanTest.TempDir, "/checkpoint-"+cid+".tar.gz")
+			checkpointFile := filepath.Join(podmanTest.TempDir, "/checkpoint-"+cId+".tar.gz")
 
 			// Checkpoint the container
-			result := podmanTest.Podman([]string{
-				"container",
-				"checkpoint",
-				"-e",
-				fileName,
-				cid,
-			})
+			result := podmanTest.Podman([]string{"container", "checkpoint", "-e", checkpointFile, cId})
 			result.WaitWithDefaultTimeout()
 
 			// As the container has been started with '--rm' it will be completely
@@ -1173,82 +1157,51 @@ var _ = Describe("Podman checkpoint", func() {
 			Expect(podmanTest.NumberOfContainersRunning()).To(Equal(1))
 			Expect(podmanTest.NumberOfContainers()).To(Equal(1))
 
-			// Remove the pod and create a new pod
-			result = podmanTest.Podman([]string{
-				"pod",
-				"rm",
-				podID,
-			})
+			// Remove the pod
+			result = podmanTest.Podman([]string{"pod", "rm", podID})
 			result.WaitWithDefaultTimeout()
 			Expect(result).To(ExitCleanly())
 
-			// First create a pod with different shared namespaces.
-			// Restore should fail
-
+			// Create a pod with different shared namespaces (restore should fail)
 			wrongShare := share[:strings.LastIndex(share, ",")]
-
-			session = podmanTest.Podman([]string{
-				"pod",
-				"create",
-				"--share",
-				wrongShare,
-			})
+			session = podmanTest.Podman([]string{"pod", "create", "--name", podName, "--share", wrongShare})
 			session.WaitWithDefaultTimeout()
 			Expect(session).To(ExitCleanly())
 			podID = session.OutputToString()
 
-			// Restore container with different port mapping
-			result = podmanTest.Podman([]string{
-				"container",
-				"restore",
-				"--pod",
-				podID,
-				"-i",
-				fileName,
-			})
+			// Restore container into pod with different shared namespaces
+			result = podmanTest.Podman([]string{"container", "restore", "--pod", podID, "-i", checkpointFile})
 			result.WaitWithDefaultTimeout()
 			Expect(result).To(ExitWithError(125, "does not share the "))
 
-			// Remove the pod and create a new pod
-			result = podmanTest.Podman([]string{
-				"pod",
-				"rm",
-				podID,
-			})
+			// Remove pod
+			result = podmanTest.Podman([]string{"pod", "rm", podID})
 			result.WaitWithDefaultTimeout()
 			Expect(result).To(ExitCleanly())
 
-			session = podmanTest.Podman([]string{
-				"pod",
-				"create",
-				"--share",
-				share,
-			})
+			// Create a pod with correct shared namespaces
+			session = podmanTest.Podman([]string{"pod", "create", "--name", podName, "--share", share})
 			session.WaitWithDefaultTimeout()
 			Expect(session).To(ExitCleanly())
 			podID = session.OutputToString()
 
-			// Restore container with different port mapping
-			result = podmanTest.Podman([]string{
-				"container",
-				"restore",
-				"--pod",
-				podID,
-				"-i",
-				fileName,
-			})
+			// Restore container into pod
+			// Use pod name for one of the restore tests and ID for the others.
+			if share == namespaceCombination[0] {
+				result = podmanTest.Podman([]string{"container", "restore", "--pod", podName, "-i", checkpointFile})
+			} else {
+				result = podmanTest.Podman([]string{"container", "restore", "--pod", podID, "-i", checkpointFile})
+			}
 			result.WaitWithDefaultTimeout()
 
 			Expect(result).To(ExitCleanly())
 			Expect(podmanTest.NumberOfContainersRunning()).To(Equal(2))
 			Expect(podmanTest.GetContainerStatus()).To(ContainSubstring("Up"))
 
-			result = podmanTest.Podman([]string{
-				"rm",
-				"-f",
-				result.OutputToString(),
-			})
+			// Remove restored container
+			result = podmanTest.Podman([]string{"rm", "-f", result.OutputToString()})
 			result.WaitWithDefaultTimeout()
+
 			// #11784 (closed wontfix): runc warns "lstat /sys/.../machine.slice/...: ENOENT"
 			// so we can't use ExitCleanly()
 			if podmanTest.OCIRuntime == "runc" {
@@ -1259,16 +1212,13 @@ var _ = Describe("Podman checkpoint", func() {
 			Expect(podmanTest.NumberOfContainersRunning()).To(Equal(1))
 			Expect(podmanTest.NumberOfContainers()).To(Equal(1))
 
-			result = podmanTest.Podman([]string{
-				"pod",
-				"rm",
-				"-fa",
-			})
+			// Remove pod
+			result = podmanTest.Podman([]string{"pod", "rm", "-fa"})
 			result.WaitWithDefaultTimeout()
 			Expect(result).To(ExitCleanly())
 
 			// Remove exported checkpoint
-			os.Remove(fileName)
+			os.Remove(checkpointFile)
 		})
 	}
 
